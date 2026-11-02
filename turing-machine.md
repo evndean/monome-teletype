@@ -126,4 +126,5 @@ It also includes a scale knob to restrict this output to a smaller range.
 ## Resources
 
 - [Turing 201: Turing Machine Explained!](https://youtu.be/va2XAdFtmeU?si=O5ixpayz2ICJwmFz)
+- [Teletype manual](https://monome.org/docs/teletype/manual/)
 
