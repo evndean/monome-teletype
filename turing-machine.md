@@ -32,14 +32,15 @@ Some bitwise operators that seem useful:
 
 ### Advancing the sequence
 
-In the teletype, each variable normally contains 16 bits; this is the same number of steps in the turing machine.
+In teletype, each variable contains 16 bits (-23768 to 32767);
+this is the same number of steps in the Turing Machine module.
 So, we can use a single variable to store all 16 steps.
 
-If we just want to advance the sequence without changing any values, we can juse use
+If we want to advance the sequence and have it loop, we can use circular left shift to advance the sequence by 1:
 ```
-RROT X 1
+# (assuming we are storing the sequence value in the X variable)
+X LROT X 1
 ```
-to advance the sequence by 1, assuming we are storing the sequence in the variable `X`.
 
 ### Visualizing the sequence
 
@@ -55,12 +56,56 @@ So, we can:
 1. Loop over all 16 steps.
 2. For each step, set the LED as 'on' or 'off'.
     Since the value of each bit will be `1` or `0`, we can use `* (level) (bit value)` to set the level.
+    (Because of line length limitations, we can only fit a single digit for the level value (i.e. 0 - 9).)
 
 ```
-L 0 15: G.LED I 0 * 10 BGET I X
+# (assuming we are storing the sequence value in the X variable)
+L 0 15: G.LED I 0 * 7 BGET I X
 ```
 
-### Introducing randomness
+### Generating an output CV
+
+A few things worth noting:
+- Variable values use the Int16 type, with value limits of -32768 / 32767.
+- The CV outputs support a range of 0 to 16383 (V 10 - 1).
+
+If we just want the values for the first 8 bits, we can use the bitwise `and` operator with a value that has the first 8 bits set, i.e.
+```
+# (assuming X holds our sequence value)
+& X 255
+```
+
+If we wanted to then scale that to the full range of the CV output, we could do something like
+```
+# (assuming Y holds the first-8-bits value from above)
+SCL 0 255 0 V 10 Y
+```
+
+### Example scene: a simple looping sequence
+
+M:
+```
+$ 1
+```
+
+I: (seed a random initial value, because otherwise I don't think the bit shift command works)
+```
+TODO: add this command
+```
+
+1: (storing some intermediate values in Y and Z just to see the values change using `LIVE.V`; probably not needed long-term.)
+```
+X LROT X 1
+L 0 15: G.LED I 0 * 7 BGET X I
+Y & X 255
+L 0 15: G.LED I 1 * 7 BGET Y 1
+Z SCL 0 255 0 v 10 Y
+CV 1 z
+```
+
+### TODO: Introducing randomness
+
+_(E.D. I haven't actually tested this out yet, this was just me ideating before actually working on the bits above; it probably needs more work)_
 
 `PARAM` (`PRM`) returns a value in the range 0-16383.
 Let's skip the "center is fully random" behavior of the turing machine and instead start with something like:
@@ -78,7 +123,24 @@ PARAM.SCALE 100 0
 PROB PARAM: BSET X 0 TOSS
 ```
 
-### The script
+Actually, it seems like `BSET` returns the updated variable value with the variable set (i.e. with value `1`).
+So, we'd need to do something like the follwing pseudocode:
+```
+if (should set a new value) then:
+    if (should set value to 0) then:
+        BCLR X 0
+    else:
+        BSET X 0
+```
+
+I'm not sure we can do that type of nested conditional in teletype though.
+Instead, we could do a non-rotated shift, then probabilistically add 1.
+
+TODO: still need to finish fleshing this out.
+
+### TODO: The script
+
+_(E.D. I haven't actually tested this out yet, this was just me ideating before actually working on the bits above; it probably needs more work)_
 
 A really basic script could look something like:
 1. Circular right shift by 1 bit.
