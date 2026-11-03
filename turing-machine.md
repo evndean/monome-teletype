@@ -39,7 +39,7 @@ So, we can use a single variable to store all 16 steps.
 If we want to advance the sequence and have it loop, we can use circular left shift to advance the sequence by 1:
 ```
 # (assuming we are storing the sequence value in the X variable)
-X LROT X 1
+X <<< X 1
 ```
 
 ### Visualizing the sequence
@@ -88,19 +88,19 @@ M:
 $ 1
 ```
 
-I: (seed a random initial value, because otherwise I don't think the bit shift command works)
+I: (seed a random initial value, because otherwise we don't get any variation)
 ```
 TODO: add this command
 ```
 
 1: (storing some intermediate values in Y and Z just to see the values change using `LIVE.V`; probably not needed long-term.)
 ```
-X LROT X 1
+X <<< X 1
 L 0 15: G.LED I 0 * 7 BGET X I
 Y & X 255
 L 0 15: G.LED I 1 * 7 BGET Y 1
 Z SCL 0 255 0 v 10 Y
-CV 1 z
+CV 1 Z
 ```
 
 ### TODO: Introducing randomness
@@ -166,24 +166,32 @@ IF BGET X 0: TR.P 1
 It uses a 16-step shift register, which stores the state of 16 bits (individual 0 or 1 values).
 The "pulse" output uses the state of the first bit.
 The "CV" output uses the state of the first 8 bits, in increasing powers of 2, e.g.
-
 ```
-01101101
-
-0        --> 0 * 2^0 --> 0 * 1
- 1       --> 1 * 2^1 --> 1 * 2
-  1      --> 1 * 2^2 --> 1 * 4
-   0     --> 0 * 2^3 --> 0 * 8
-    1    --> 1 * 2^4 --> 1 * 16
-     1   --> 1 * 2^5 --> 1 * 32
-      0  --> 0 * 2^6 --> 0 * 64
-       1 --> 1 * 2^7 --> 1 * 128
-
-                     --> 182 (out of a maximum value of 255)
+|0|1|1|0|1|1|0|1|
+-----------------
+|0| | | | | | | | --> 0 * 2^0 --> 0 * 1
+| |1| | | | | | | --> 1 * 2^1 --> 1 * 2
+| | |1| | | | | | --> 1 * 2^2 --> 1 * 4
+| | | |0| | | | | --> 0 * 2^3 --> 0 * 8
+| | | | |1| | | | --> 1 * 2^4 --> 1 * 16
+| | | | | |1| | | --> 1 * 2^5 --> 1 * 32
+| | | | | | |0| | --> 0 * 2^6 --> 0 * 64
+| | | | | | | |1| --> 1 * 2^7 --> 1 * 128
+-----------------
+                              --> 182 (out of a maximum value of 255)
 ```
 
 In the eurorack module, the CV output has a maximum value of ~8.4V.
 It also includes a scale knob to restrict this output to a smaller range.
+
+Don't let the above diagram confuse you about left-shift vs. right-shift bitwise operations.
+The variable values in Teletype are 16-bit big-endian values, meaning the largest (most significant) value is on the left, e.g.
+```
+00000000 00000001 = 1
+00000000 00000010 = 2
+00000000 00000100 = 4
+00000000 00001000 = 8
+```
 
 ## Resources
 
