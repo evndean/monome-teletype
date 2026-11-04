@@ -32,7 +32,7 @@ Some bitwise operators that seem useful:
 
 ### Advancing the sequence
 
-In teletype, each variable contains 16 bits (-23768 to 32767);
+In teletype, each variable contains 16 bits (-32768 to 32767);
 this is the same number of steps in the Turing Machine module.
 So, we can use a single variable to store all 16 steps.
 
@@ -50,7 +50,7 @@ Some relevant commands:
 - `G.LED x y level` - Set the LED level (0-15).
 - `Alt-G` in Live mode will turn on the Grid Visualizer.
 
-We probably don't even need `G.CLR`, because we'll just loop over each LED every time.
+We don't actually need `G.CLR`, because we'll just loop over all LEDs in the row every time.
 
 So, we can:
 1. Loop over all 16 steps.
@@ -83,82 +83,148 @@ SCL 0 255 0 V 10 Y
 
 ### Example scene: a simple looping sequence
 
+This scene will:
+- Seed a random initial value.
+- Use `X` to store the sequence.
+- Use `Y` to store the first 8 bits of the sequence.
+- Use `Z` to store the scaled output value of `Y`.
+- Draw both `X` and `Y` on the first two rows of the grid
+
 M:
 ```
 $ 1
 ```
 
-I: (seed a random initial value, because otherwise we don't get any variation)
+I:
 ```
-TODO: add this command
+L 0 16: X <<< X 1; X + X TOSS
 ```
 
-1: (storing some intermediate values in Y and Z just to see the values change using `LIVE.V`; probably not needed long-term.)
+1:
 ```
 X <<< X 1
-L 0 15: G.LED I 0 * 7 BGET X I
 Y & X 255
+L 0 15: G.LED I 0 * 7 BGET X I
 L 0 15: G.LED I 1 * 7 BGET Y 1
-Z SCL 0 255 0 v 10 Y
+Z SCL 0 255 0 V 10 Y
 CV 1 Z
 ```
 
-### TODO: Introducing randomness
+### Adding trigger output
 
-_(E.D. I haven't actually tested this out yet, this was just me ideating before actually working on the bits above; it probably needs more work)_
+The Turing Machine module generates an output if the first bit is high.
+We can read that value using the `BGET` command:
+```
+# (assuming X holds our sequence value)
+IF BGET X 0: TR.P 1
+```
+
+### Introducing randomness
+
+The Turing Machine module has the following looping behavior:
+- At noon, the sequences are random.
+- At 5 o'clock, it locks into a repeating sequence.
+- At 7 o'clock, it double locks into a repeating sequence twice as long as the 'length' setting.
+- At 3 o'clock or 9 o'clock, it slips; looping but occasionally changing notes.
+
+That might be a bit complicated to program in a simple, 6 line Teletype script.
+
+Let's start with something simpler: have the param knob (read with `PARAM`, or `PRM`) set the probability that the new value is random, i.e.
+- At minimum value (0; fully clockwise; 7 o'clock), loop the sequence (no randomness).
+- At maximum value (16383; fully counter-clockwise; 5 o'clock), make the sequence fully random.
 
 `PARAM` (`PRM`) returns a value in the range 0-16383.
-Let's skip the "center is fully random" behavior of the turing machine and instead start with something like:
-- knob fully counter-clockwise --> fully random.
-- knob fully clockwise --> keep existing note.
-
 `PROB X:` executes a command with probability `x` (0-100).
-
 So, if we scale the param knob from 0 to 100, we can use that, e.g.
 ```
-# do this in the INIT script.
-PARAM.SCALE 100 0
+# (in the INIT script)
+PARAM.SCALE 0 100
 
-# do this in script 1
-PROB PARAM: BSET X 0 TOSS
+# (in our sequence generation script, assuming X holds our sequence value)
+PROB PARAM: (TODO logic to set the random value)
 ```
 
-Actually, it seems like `BSET` returns the updated variable value with the variable set (i.e. with value `1`).
-So, we'd need to do something like the follwing pseudocode:
+Now we need the logic to set the random value.
+`TOSS` randomly returns a `0` or `1` value, which are equivalent to clearing or setting the first bit in a number.
+So, we can use `BCLR` to zero out the first bit, then add the TOSS value.
 ```
-if (should set a new value) then:
-    if (should set value to 0) then:
-        BCLR X 0
-    else:
-        BSET X 0
+# (assuming X holds our sequence value)
+PROB PARAM: X BCLR X 0; + X TOSS
 ```
 
-I'm not sure we can do that type of nested conditional in teletype though.
-Instead, we could do a non-rotated shift, then probabilistically add 1.
-
-TODO: still need to finish fleshing this out.
-
-### TODO: The script
-
-_(E.D. I haven't actually tested this out yet, this was just me ideating before actually working on the bits above; it probably needs more work)_
-
-A really basic script could look something like:
-1. Circular right shift by 1 bit.
-2. Read from the knob to determine probability of setting a new random value.
-3. Read and scale the value to determine the CV value.
-4. Read the first bit to determine whether to output a trigger.
-
-INIT:
+Unfortunately, that's too long to write on a single line.
+Some other ideas:
 ```
-PARAM.SCALE 100 0
+J TOSS
+PROB PRM: X BCLR X 0; X + X J
 ```
 
-Script 1:
+### Example scene: introducing randomness
+
+This scene will:
+- Use `X` to store the sequence.
+- Use `Y` to store a copy of the initial sequence (so we can confirm that it changes over time).
+- Draw both values on the first two rows of the grid
+
+M:
 ```
-RROT X 1
-PROB PARAM: BSET X 0 TOSS
-CV 1 X
-IF BGET X 0: TR.P 1
+$ 1
+```
+
+I:
+```
+PARAM.SCALE 0 100
+L 0 16: X <<< X 1; X + X TOSS
+Y X
+G.CLR
+L 0 15: G.LED I 0 * 7 BGET X I
+L 0 15: G.LED I 1 * 7 BGET Y I
+```
+
+1:
+```
+X <<< X 1; Y <<< Y 1; J TOSS
+PROB PRM: X BCLR X 0; X + X J
+L 0 15: G.LED I 0 * 7 BGET X I
+L 0 15: G.LED I 1 * 7 BGET Y 1
+```
+
+### Final scene: putting it all together
+
+This scene will:
+- Use `X` to store the sequence.
+- Use `Y` to store the first 8 bits of the sequence.
+- Use `Z` to store the scaled output value of `Y`.
+- Use the param knob to determine whether the sequence is looping.
+- Draw the 16 bits of the sequence on the first row of the grid.
+
+M:
+```
+$ 1
+$ 2
+```
+
+I:
+```
+PARAM.SCALE 0 100
+X 0
+G.CLR
+```
+
+1:
+```
+X <<< X 1; J TOSS
+PROB PRM: X BCLR X 0; X + X J
+Y & X 255
+Z SCL 0 255 0 V 10 Y
+CV 1 Z
+IF BGET X 0: TR.PULSE 1
+```
+
+2:
+```
+L 0 15: G.LED I 0 * 7 BGET X I
+L 0 15: G.LED I 1 * 7 BGET Y I
 ```
 
 ## How a Turing Machine works
