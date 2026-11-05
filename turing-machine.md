@@ -283,6 +283,7 @@ L 0 15: G.LED I 1 * 7 BGET Y I
 - Scale the CV output(s) to a smaller, more musical range.
     Maybe use the grid to set the range (i.e. one slider for minimum value, one for maximum value).
 - Quantize the CV outputs.
+- Sample and hold; only update the CV output value if the trigger is pulsed.
 
 ## Resources
 
