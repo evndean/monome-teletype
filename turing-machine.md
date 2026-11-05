@@ -274,6 +274,8 @@ L 0 15: G.LED I 1 * 7 BGET Y I
 
 ## Ideas for extensions
 
+- Update param behavior to more closely mirror the Turing machine.
+- Add ability to change loop length (would need to decide what param controls).
 - Have 4 independent CV/gate sequences running on CV/gate outputs 1-4.
 - Have a single sequence, but read from it in different ways to derive different outputs.
     - CV outputs could use different combinations of bits, e.g. odds, evens, fibonacci, etc.
